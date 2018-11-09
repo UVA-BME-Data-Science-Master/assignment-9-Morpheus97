@@ -125,6 +125,7 @@ C best explains the difference in admission percentages
 You can extract the year from each date like this:
 
 ```{r}
+data(GSE5859)
 geneExpression = exprs(e)
 sampleInfo = pData(e)
 
@@ -512,12 +513,12 @@ There were 14 qvalues less than 0.1 for the sex comparision
 ### 12. What proportion of the genes are on chromosomes X and Y?
 
 ```{r}
-genes = geneAnnotation$CHR[qvals<0.1]
+genes = geneAnnotation$CHR[q$qvalues<0.1]
 genes2 = genes[genes == "chrX " | genes == "chrY"]
 length(genes2)/length(genes)
 ```
 
-0.0148265 is the proportion of the genes on chromosomes X and Y
+0.4285714 is the proportion of the genes on chromosomes X and Y
 
 ## Exercise 5
 
@@ -547,8 +548,25 @@ Now fit a linear model to each gene that instead of month includes these factors
 Use the qvalue function.
 How many genes have q-value < 0.1?
 
-
+```{r}
+result <- vector("integer", 8793)
+for (i in 1:8793){
+  X <- model.matrix(~svafit$sv)
+  y = geneExpression[i,]
+  fit = lm(y~X)
+  result[i] <- summary(fit)$coef[2,4]
+}
+q = qvalue(result)
+sum(q$qvalues<0.1)
+```
+4947  have a q-value of less than 0.1
 
 ### 2. How many of these genes are from chrY or chrX?
 
+```{r}
+genes = geneAnnotation$CHR[q$qvalues<0.1]
+genes2 = genes[genes == "chrX " | genes == "chrY"]
+length(genes2)
+```
 
+53 of these genes are from chrY or chrX
