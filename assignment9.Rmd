@@ -244,26 +244,58 @@ There are 3695 with q-values less than 0.05
 ## Exercise 3
 
 ```{r}
+data(GSE5859Subset)
 sex = sampleInfo$group
 month = factor( format(sampleInfo$date,"%m"))
-table( sampleInfo$group, month)
+table(  sampleInfo$group, month)
 ```
 
 ### 1. Using the functions rowttests and qvalue compare the two groups. Because this is a smaller dataset which decreases our power, we will use the more lenient FDR cut-off of 10%. How many gene have q-values less than 0.1?
 
+```{r}
+gender = factor(sex)
+p = rowttests(geneExpression,gender)$p.value
+q = qvalue(p)
+sum(q$qvalue < 0.1)
+```
 
+There are 59 genes with a q-values less than 0.1
 
 ### 2. Note that sampleInfo$group here presents males and females. Thus, we expect differences to be in on chrY and, for genes that escape inactivation, chrX. We do not expect many autosomal genes to be different between males and females. This gives us an opportunity to evaluate false and true positives with experimental data. For example, we evaluate results using the proportion genes of the list that are on chrX or chrY. For the list calculated above, what proportion of this list is on chrX or chrY?
 
+```{r}
+gender = factor(sex)
+p = rowttests(geneExpression,gender)$p.value
+q = qvalue(p)$qvalue
+genes = geneAnnotation$CHR[q<0.1]
+genes2 = genes[genes == "chrX" | genes == "chrY"]
+length(genes2)/length(genes)
+```
 
+0.3389831 is the proportion of this list on chrY or chrY
 
 ### 3. We can also check how many of the chromosomes X and Y genes we detected as different. How many are on Y?
 
+```{r}
+genes3 = genes[genes == "chrY"]
+length(genes3)
+```
 
+8 of the genes are on Y
 
 ### 4. Now for the autosomal genes (not on chrX and chrY) for which q-value < 0.1, perform a t-test comparing samples processed in June to those processed in October. What proportion of these have p-values <0.05 ?
 
+```{r}
+gender = factor(sex)
+p = rowttests(geneExpression,gender)$p.value
+q = qvalue(p)$qvalue
+genes = which(q<0.1 & !geneAnnotation$CHR%in%c("chrX","chrY"))
+m = factor( format(sampleInfo$date,"%m"))
+p = rowttests(geneExpression[genes,],month)$p.value
+length(p[p<0.05])/length(p)
+```
 
+0.8717949 of these have a p-value less than 0.05
 
 ### 5. The above result shows that the great majority of the autosomal genes show differences due to processing data. This provides further evidence that confounding is resulting in false positives. So we are going to try to model the month effect to better estimate the sex effect. We are going to use a linear model:
 
@@ -273,7 +305,7 @@ Which of the following creates the appropriate design matrix?
 . C) It can't be done with one line.
 . D) X = model.matrix(???sex+month)
 
-
+The correct answer is D, X = model.matrix(???sex+month)
 
 ### 6. Now use the X defined above, to fit a regression model using lm for each gene. You can obtain p-values for estimated parameters using summary. Here is an example
 
@@ -283,25 +315,63 @@ i = 234
 y = geneExpression[i,]
 fit = lm(y~X)
 summary(fit)$coef
+head(geneExpression)
 ```
 
 How many of the q-values for the group comparison are now <0.1?
-Note the big drop from what we obtained without the correction.
 
+```{r}
+result <- vector("integer", 8793)
+for (i in 1:8793){
+  X = model.matrix(~sex+month)
+  y = geneExpression[i,]
+  fit = lm(y~X)
+  result[i] <- summary(fit)$coef[2,4]
+}
+```
 
+```{r}
+q = qvalue(result)
+sum(q$qvalues<0.1)
+```
+
+17 qvalues for the group comparison are less than 0.1
 
 ### 7. With this new list, what proportion of these are chrX and chrY?
-Notice the big improvement.
 
+```{r}
+genes <- geneAnnotation$CHR[q$qvalues<0.1]
+genes2 <- genes[genes == "chrX" | genes == "chrY"]
+length(genes2)/length(genes)
+```
 
+0.8823529 is the proportion of these are chrX and chrY
 
 ### 8. How many on Y or X?
 
+```{r}
+length(genes[genes == "chrY"])
+length(genes[genes == "chrX"])
+```
 
+6 are on Y, 9 are on X
 
 ### 9. Now from the linear model above, extract the p-values related to the coefficient representing the October versus June differences using the same linear model. How many of the q-values for the month comparison are now <0.1? This approach is basically the approach implemented by Combat.
 
+```{r}
+result <- vector("integer", 8793)
+for (i in 1:8793){
+  X = model.matrix(~sex+month)
+  y = geneExpression[i,]
+  fit = lm(y~X)
+  result[i] <- summary(fit)$coef[3,4]
+}
 
+q = qvalue(result)
+sum(q$qvalues<0.1)
+```
+
+3170 genes have a qvalue less than 0.1 when the month comparison is used
 
 ## Exercise 4
 
