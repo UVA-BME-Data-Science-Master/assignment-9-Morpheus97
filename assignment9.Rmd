@@ -25,6 +25,7 @@ data(GSE5859)
 library(GSE5859Subset)
 data(GSE5859Subset)
 library(sva)
+library(RColorBrewer)
 ```
 
 # Basic Machine Learning
@@ -379,6 +380,8 @@ sum(q$qvalues<0.1)
 
 A,B,C,D?
 
+The correct answer is B, y(1,1;1,-1)
+
 ### 2. Say Y is M × N, in the SVD Y = UDV ??? which of the following is not correct?
 
 . A) DV ??? are the new coordinates for the projection U???Y
@@ -386,12 +389,26 @@ A,B,C,D?
 . C) D are the coordinates of the projection U???Y
 . D) U???Y is a projection from an N-dimensional to M-dimensional subspace.
 
-
+C, D are the coordinates of the projection U???Y, is not correct
 
 ### 3. Define: Compute and plot an image of the correlation for each sample. Make two image plots of these correlations. In the first one, plot the correlation as image. In the second, order the samples by date and then plot an image of the correlation. The only difference in these plots is the order in which the samples are plotted.
 
 ```{r}
 y = geneExpression - rowMeans(geneExpression)
+n=ncol(y)
+cors=cor(y)
+cols=colorRampPalette(rev(brewer.pal(11,"RdBu")))(100)
+mypar()
+image(1:n,1:n,cors,xaxt="n",yaxt="n",col=cols,xlab="",ylab="",zlim=c(-1,1))
+```
+
+```{r}
+order = order(sampleInfo$date)
+y1 = y[,order]
+cors=cor(y1)
+cols=colorRampPalette(rev(brewer.pal(11,"RdBu")))(100)
+mypar()
+image(1:n,1:n,cors,xaxt="n",yaxt="n",col=cols,xlab="",ylab="",zlim=c(-1,1))
 ```
 
 Based on these plots, which of the following you would say is true?
@@ -404,7 +421,9 @@ correlated samples.
 month, and within these we see subgroups driven by date, seems to suggest date more
 than month per se are the hidden factors.
 
-
+The correct answer is D, The fact that in the plot ordered by month we see two groups mainly driven by
+month, and within these we see subgroups driven by date, seems to suggest date more
+than month per se are the hidden factors.
 
 ### 4. Based on the correlation plots above, we could argue that there are at least two hidden factors. Using PCA estimate these two factors. Specifically, apply the svd to y and use the first two PCs as estimates. Which command gives us these estimates?
 
@@ -413,44 +432,92 @@ than month per se are the hidden factors.
 . C) pcs = svd(y)$u[,1:2]
 . D) pcs = svd(y)$d[1:2]
 
-
+The correct answer is B, pcs = svd(y)$v[,1:2]
 
 ### 5. Plot each of the estimated factors ordered by date. Use color to denote month. The first factor is clearly related to date. Which of the following appear to be most different according to this factor?
+
+```{r}
+month=format(sampleInfo$date, "%m")
+pcs = svd(y)$v[,1:2]
+o = order(sampleInfo$date)
+cols = as.numeric(month)[o]
+plot(pcs[o,1],col=cols,xaxt="n",xlab="")
+label = gsub("2005-","",sampleInfo$date[o])
+axis(1,1:ncol(y),label,las=2)
+```
 
 . A) June 23 and June 27
 . B) Oct 07 and Oct 28
 . C) June 10 and June 23
 . D) June 15 and June 24
 
-
+The correct answer is A, June 23 and June 27
 
 ### 6. Use the svd function to obtain the principal components (PCs) for our detrended gene expression data y. How many PCs explain more than 10% of the variability?
 
+```{r}
+s = svd(y)
+PC = s$d^2/ sum(s$d^2)
+sum(PC>0.10)
+```
 
+2 PCs explain more than 10% of the variability
 
 ### 7. Which PC most correlates (negative or positive correlation) with month?
 
-
-
+```{r}
+month = factor( format(sampleInfo$date,"%m"))
+cors = cor( as.numeric(month),s$v)
+cors
+max(abs(cors))
+```
+ 
+ The first component most correlates with month
+ 
 ### 8. What is this correlation (in absolute value)?
 
-
+This correlation is 0.8297915
 
 ### 9. Which PC most correlates (negative or positive correlation) with sex?
 
+```{r}
+sex= sampleInfo$group
+cors = cor( as.numeric(sex),s$v)
+cors
+max(abs(cors))
+```
 
+The first principle component most correlates with sex
 
 ### 10. What is this correlation (in absolute value)?
 
-
+This correlation is 0.6236858
 
 ### 11. Now instead of using month, which we have shown does not quite describe the batch, add the two estimated factors s$v[,1:2] to the linear model we used above. Apply this model to each gene and compute q-values for the sex difference. How many q-values < 0.1 for the sex comparison?
 
+```{r}
+result <- vector("integer", 8793)
+for (i in 1:8793){
+  X <- model.matrix(~sex+s$v[,1:2])
+  y = geneExpression[i,]
+  fit = lm(y~X)
+  result[i] <- summary(fit)$coef[2,4]
+}
+q = qvalue(result)
+sum(q$qvalues<0.1)
+```
 
+There were 14 qvalues less than 0.1 for the sex comparision
 
 ### 12. What proportion of the genes are on chromosomes X and Y?
 
+```{r}
+genes = geneAnnotation$CHR[qvals<0.1]
+genes2 = genes[genes == "chrX " | genes == "chrY"]
+length(genes2)/length(genes)
+```
 
+0.0148265 is the proportion of the genes on chromosomes X and Y
 
 ## Exercise 5
 
